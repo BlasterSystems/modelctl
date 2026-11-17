@@ -1,8 +1,8 @@
-# Persistent SMB Mount on `dgx-1`
+# Persistent SMB Mount Runbook
 
-This runbook configures the SMB share `//nas.as267.com/llms` to mount at `/mnt/nas`.
+This runbook configures an SMB share (`//smb.example.com/share`) to mount at `/mnt/nas`.
 
-> **Security:** The previous SMB password was exposed in terminal/chat output. Change it on the NAS and update the credentials file. Do not put the password directly in `/etc/fstab`.
+> **Security:** If an SMB password has ever been exposed in terminal or chat output, change it on the NAS and update the credentials file. Do not put the password directly in `/etc/fstab`.
 
 ## 1. Install CIFS support
 
@@ -28,7 +28,7 @@ sudoedit /etc/.smbcredentials
 Enter the following, using the newly changed password:
 
 ```ini
-username=piresbruno
+username=<smb-user>
 password=NEW_PASSWORD
 ```
 
@@ -42,8 +42,8 @@ sudo chmod 600 /etc/.smbcredentials
 ## 4. Confirm the local user and group IDs
 
 ```bash
-id -u piresbruno
-id -g piresbruno
+id -u <local-user>
+id -g <local-user>
 ```
 
 The configuration below assumes both values are `1000`. Replace `uid=1000` or `gid=1000` if the commands return different values.
@@ -59,7 +59,7 @@ sudoedit /etc/fstab
 Add or replace the SMB entry with:
 
 ```fstab
-//nas.as267.com/llms /mnt/nas cifs credentials=/etc/.smbcredentials,vers=3.0,iocharset=utf8,uid=1000,gid=1000,mfsymlinks,_netdev,nofail,x-systemd.automount,x-systemd.idle-timeout=0 0 0
+//smb.example.com/share /mnt/nas cifs credentials=/etc/.smbcredentials,vers=3.0,iocharset=utf8,uid=1000,gid=1000,mfsymlinks,_netdev,nofail,x-systemd.automount,x-systemd.idle-timeout=0 0 0
 ```
 
 Relevant options:
