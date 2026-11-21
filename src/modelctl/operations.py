@@ -16,6 +16,7 @@ from .catalog import (
     project_models,
 )
 from .disk import DiskSpaceError, ensure_free_space
+from .drafts import draft_args
 from .errors import ModelctlError, ValidationError
 from .generation import parse_hf_source
 from .hf_cache import (
@@ -772,6 +773,11 @@ def delete_model(root: Path, name: str, *, apply: bool = False) -> DeleteResult:
         )
 
 
+def _draft_argv(base: Path, draft: str, recorded: object) -> list[str]:
+    """--model-draft plus the draft kind's --spec-type (or the recorded override)."""
+    return draft_args(draft, str((base / draft).resolve(strict=True)), recorded)
+
+
 def serve_argv(root: Path, name: str) -> list[str]:
     layout = Layout(root)
     object_path, metadata = _active_object(layout, name)
@@ -804,12 +810,7 @@ def serve_argv(root: Path, name: str) -> list[str]:
         mtp = companions.get("mtp")
         if mtp:
             companion_args.extend(
-                [
-                    "--model-draft",
-                    str((object_path / mtp).resolve(strict=True)),
-                    "--spec-type",
-                    "draft-mtp",
-                ]
+                _draft_argv(object_path, mtp, metadata.get("draft_spec_type"))
             )
     else:
         if not has_path_placeholder:
@@ -952,12 +953,9 @@ def serve_cached_command(cache_dir: Path, name: str) -> str:
             )
         if companions.get("mtp"):
             companion_args.extend(
-                [
-                    "--model-draft",
-                    str((record.snapshot / companions["mtp"]).resolve(strict=True)),
-                    "--spec-type",
-                    "draft-mtp",
-                ]
+                _draft_argv(
+                    record.snapshot, companions["mtp"], metadata.get("draft_spec_type")
+                )
             )
     else:
         if not has_path:

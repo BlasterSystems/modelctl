@@ -722,7 +722,13 @@ replaced unless --force is supplied.""",
     )
     manifest.add_argument(
         "--mtp",
-        help="MTP draft model filename or substring when selection is ambiguous",
+        help="speculative draft model (MTP, DSpark, DFlash) filename or "
+        "substring when selection is ambiguous",
+    )
+    manifest.add_argument(
+        "--draft-spec-type",
+        help="llama.cpp --spec-type for the draft model (default: derived from "
+        "the draft kind, e.g. draft-mtp or draft-dspark)",
     )
     manifest.add_argument("--output", type=Path, help="output path")
     manifest.add_argument("--force", action="store_true", help="replace an existing manifest")
@@ -764,7 +770,13 @@ llama.cpp. If multiple GGUF quantizations exist, --quantization is required.""",
     )
     download.add_argument(
         "--mtp",
-        help="MTP draft model filename or substring when selection is ambiguous",
+        help="speculative draft model (MTP, DSpark, DFlash) filename or "
+        "substring when selection is ambiguous",
+    )
+    download.add_argument(
+        "--draft-spec-type",
+        help="llama.cpp --spec-type for the draft model (default: derived from "
+        "the draft kind, e.g. draft-mtp or draft-dspark)",
     )
     download.add_argument(
         "--force",
@@ -807,7 +819,8 @@ examples:
 
 The top-level 'downloads' mapping is required. Each entry requires 'source'.
 Optional fields are name, revision, quantization, runtime (auto, vllm, or
-llama.cpp), mmproj, mtp, and force (true or false).
+llama.cpp), mmproj, mtp (draft model), draft_spec_type, and force (true or
+false).
 
 Before any transfer, preflight validates the YAML schema, unique effective model
 names, existing manifest compatibility, every Hugging Face source and
@@ -1532,6 +1545,7 @@ def run(argv: list[str] | None = None) -> int:
             runtime=args.runtime,
             mmproj=args.mmproj,
             mtp=args.mtp,
+            draft_spec_type=args.draft_spec_type,
             force_manifest=args.force,
             progress=DownloadProgressEmitter(),
             min_free_bytes=args.min_free_bytes,
@@ -1619,6 +1633,7 @@ def run(argv: list[str] | None = None) -> int:
             runtime=args.runtime,
             mmproj=args.mmproj,
             mtp=args.mtp,
+            draft_spec_type=args.draft_spec_type,
         )
         print(
             write_generated_manifest(

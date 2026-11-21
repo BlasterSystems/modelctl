@@ -7,6 +7,13 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import unquote, urlparse
 
+from .drafts import (
+    default_spec_type,
+    is_draft_artifact,
+    is_imatrix_artifact,
+    preferred_draft,
+    validate_spec_type,
+)
 from .errors import ManifestError, ModelctlError
 from .manifest import parse_manifest, validate_name
 from .progress import DownloadProgressEmitter
@@ -102,14 +109,6 @@ def _sibling_names(info: Any) -> list[str]:
     return sorted(set(names))
 
 
-def _is_mtp_artifact(value: str) -> bool:
-    path = PurePosixPath(value)
-    return path.suffix.lower() == ".gguf" and (
-        path.name.lower().startswith("mtp-")
-        or any(part.lower() == "mtp" for part in path.parts[:-1])
-    )
-
-
 def _gguf_groups(files: list[str]) -> list[list[str]]:
     groups: dict[tuple[str, str, int], list[tuple[int, str]]] = {}
     standalone: list[list[str]] = []
@@ -117,7 +116,11 @@ def _gguf_groups(files: list[str]) -> list[list[str]]:
         if not value.lower().endswith(".gguf"):
             continue
         basename = Path(value).name.lower()
-        if basename.startswith("mmproj") or _is_mtp_artifact(value):
+        if (
+            basename.startswith("mmproj")
+            or is_draft_artifact(value)
+            or is_imatrix_artifact(value)
+        ):
             continue
         match = _SHARD_RE.match(Path(value).name)
         if match:
@@ -206,13 +209,18 @@ def _select_mmproj(files: list[str], requested: str | None) -> str | None:
 
 
 def _select_mtp(files: list[str], requested: str | None) -> str | None:
-    candidates = sorted(value for value in files if _is_mtp_artifact(value))
+    """Select the speculative draft companion (MTP, DSpark, DFlash, DFlash2)."""
+    candidates = sorted(value for value in files if is_draft_artifact(value))
     if requested is None:
         root_candidates = [
             value for value in candidates if len(PurePosixPath(value).parts) == 1
         ]
         if len(root_candidates) == 1:
             return root_candidates[0]
+        if len(root_candidates) > 1:
+            preferred = preferred_draft(root_candidates)
+            if preferred is not None:
+                return preferred
     return _select_artifact(candidates, requested, option="--mtp")
 
 
@@ -249,9 +257,12 @@ def generate_manifest_document(
     runtime: str = "auto",
     mmproj: str | None = None,
     mtp: str | None = None,
+    draft_spec_type: str | None = None,
     api: Any | None = None,
 ) -> dict[str, Any]:
     repo, selected_revision = parse_hf_source(source, revision)
+    if draft_spec_type is not None:
+        validate_spec_type(draft_spec_type)
     model_name = validate_name(name) if name else infer_name(repo)
     if api is None:
         from huggingface_hub import HfApi
@@ -315,9 +326,21 @@ def generate_manifest_document(
         )
         if companions:
             document["companions"] = companions
+        if draft_spec_type is not None:
+            draft = companions.get("mtp")
+            if draft is None:
+                raise ManifestError(
+                    "--draft-spec-type requires a draft model companion (--mtp)"
+                )
+            # Record only an override: the kind default is derived at serve
+            # time, which keeps existing object identities stable.
+            if draft_spec_type != default_spec_type(draft):
+                document["draft_spec_type"] = draft_spec_type
     elif selected_runtime == "vllm":
-        if mmproj or mtp:
-            raise ManifestError("--mmproj and --mtp are only supported with llama.cpp")
+        if mmproj or mtp or draft_spec_type:
+            raise ManifestError(
+                "--mmproj, --mtp, and --draft-spec-type are only supported with llama.cpp"
+            )
         if not has_standard_weights:
             raise ManifestError("vLLM runtime requires safetensors or bin weights")
         patterns = [
@@ -432,6 +455,7 @@ def download_from_hf(
     runtime: str = "auto",
     mmproj: str | None = None,
     mtp: str | None = None,
+    draft_spec_type: str | None = None,
     force_manifest: bool = False,
     api: Any | None = None,
     snapshot: Any | None = None,
@@ -447,6 +471,7 @@ def download_from_hf(
         runtime=runtime,
         mmproj=mmproj,
         mtp=mtp,
+        draft_spec_type=draft_spec_type,
         api=api,
     )
     return download_generated_manifest(

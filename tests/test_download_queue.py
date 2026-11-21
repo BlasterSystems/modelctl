@@ -18,7 +18,7 @@ from modelctl.download_queue import (
 from modelctl.progress import DownloadProgressEmitter
 
 
-def _generator(source, *, name, revision, quantization, runtime, mmproj, mtp):
+def _generator(source, *, name, revision, quantization, runtime, mmproj, mtp, draft_spec_type=None):
     return {
         "name": name,
         "repo": source,

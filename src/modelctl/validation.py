@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
+from .drafts import is_valid_spec_type
 from .errors import ValidationError
 from .manifest import ModelManifest, RuntimeProfile
 
@@ -200,6 +201,9 @@ def write_metadata(
         "runtime": asdict(manifest.runtime),
         "files": [asdict(item) for item in expected],
     }
+    # Additive key: absent for every object without an explicit override.
+    if manifest.draft_spec_type:
+        payload["draft_spec_type"] = manifest.draft_spec_type
     path = directory / METADATA_FILE
     temp = directory / f".{METADATA_FILE}.tmp-{os.getpid()}"
     try:
@@ -260,6 +264,13 @@ def validate_object(
     ):
         raise ValidationError("object metadata has invalid companions")
     required.extend((f"{kind} companion", path) for kind, path in companions.items())
+    draft_spec_type = metadata.get("draft_spec_type")
+    if draft_spec_type is not None and (
+        not isinstance(draft_spec_type, str)
+        or not is_valid_spec_type(draft_spec_type)
+        or "mtp" not in companions
+    ):
+        raise ValidationError("object metadata has an invalid draft_spec_type")
     selected = {item.path for item in expected}
     for label, relative in required:
         if relative not in selected:

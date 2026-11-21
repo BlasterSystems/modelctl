@@ -11,12 +11,35 @@ This project follows semantic versioning.
   checked before anything is written, and a below-floor download fails
   cleanly without marking the staging tree resumable. `0` (the default)
   disables the floor.
+- Speculative draft companions beyond MTP: GGUF files named `dspark-*`,
+  `dflash-*`, or `dflash2-*` (or under a matching directory) are recognised as
+  draft models, attached as the `mtp` companion, and excluded from
+  quantization groups. For example, `unsloth/Inkling-2-Mini-GGUF` now selects
+  `dspark-Inkling-2-Mini-Q8_0.gguf` instead of listing it as a quantization.
+- `manifest`, `download`, and queue entries accept `--draft-spec-type` /
+  `draft_spec_type` to record the llama.cpp `--spec-type` for the draft. It is
+  stored only when it differs from the draft kind's default, so existing
+  object identities do not change.
 - `prune-cleanup-quarantine`: lists and optionally removes the
   `.staging/.cleanup-quarantine` debris an interrupted `cleanup-staging
   --apply` leaves behind. Dry-run is the default.
 
 ### Changed
 
+- `serve-command` emits the draft kind's `--spec-type`: `draft-dspark` for
+  DSpark drafts, and `--model-draft` without `--spec-type` for DFlash drafts
+  unless `draft_spec_type` is recorded. Every other `mtp` companion, including
+  files under `MTP/` and hand-written names, keeps `draft-mtp` as before.
+- When a GGUF repository has several root-level drafts, the single `Q8_0` one
+  is selected instead of failing (e.g.
+  `bartowski/google_gemma-4-26B-A4B-it-GGUF`).
+- `*imatrix*` GGUF calibration files are no longer offered as quantizations.
+- Upgrade note: a repository whose `dspark-`/`dflash-` file was previously
+  selected as a quantization of its own (for example a separate `...-draft`
+  entry) now treats it as a draft companion. Regenerating such a manifest
+  either attaches the draft to the main model (pass `--force` to replace the
+  existing manifest) or, for the old draft-only entry, fails with "no GGUF
+  quantization matches". Existing published objects are not affected.
 - modelctl is now licensed under the Apache License, Version 2.0
   (previously MIT).
 
