@@ -4,13 +4,10 @@ This project follows semantic versioning.
 
 ## Unreleased
 
+## 0.25.0
+
 ### Added
 
-- `download` and `queue` accept `--min-free-bytes`: the store volume's free
-  space (plus the download's expected size, from the dry-run estimate) is
-  checked before anything is written, and a below-floor download fails
-  cleanly without marking the staging tree resumable. `0` (the default)
-  disables the floor.
 - Speculative draft companions beyond MTP: GGUF files named `dspark-*`,
   `dflash-*`, or `dflash2-*` (or under a matching directory) are recognised as
   draft models, attached as the `mtp` companion, and excluded from
@@ -20,9 +17,6 @@ This project follows semantic versioning.
   `draft_spec_type` to record the llama.cpp `--spec-type` for the draft. It is
   stored only when it differs from the draft kind's default, so existing
   object identities do not change.
-- `prune-cleanup-quarantine`: lists and optionally removes the
-  `.staging/.cleanup-quarantine` debris an interrupted `cleanup-staging
-  --apply` leaves behind. Dry-run is the default.
 
 ### Changed
 
@@ -40,6 +34,22 @@ This project follows semantic versioning.
   either attaches the draft to the main model (pass `--force` to replace the
   existing manifest) or, for the old draft-only entry, fails with "no GGUF
   quantization matches". Existing published objects are not affected.
+
+## 0.24.0
+
+### Added
+
+- `download` and `queue` accept `--min-free-bytes`: the store volume's free
+  space (plus the download's expected size, from the dry-run estimate) is
+  checked before anything is written, and a below-floor download fails
+  cleanly without marking the staging tree resumable. `0` (the default)
+  disables the floor.
+- `prune-cleanup-quarantine`: lists and optionally removes the
+  `.staging/.cleanup-quarantine` debris an interrupted `cleanup-staging
+  --apply` leaves behind. Dry-run is the default.
+
+### Changed
+
 - modelctl is now licensed under the Apache License, Version 2.0
   (previously MIT).
 
