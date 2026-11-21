@@ -97,7 +97,8 @@ When running from this source checkout instead of an installed package, use
 1. Queries Hugging Face and resolves the requested revision.
 2. Infers vLLM for standard weights or llama.cpp for a GGUF-only repository.
 3. Detects the repository model card and llama.cpp companion models such as
-   multimodal projectors (`mmproj`) and MTP draft models.
+   multimodal projectors (`mmproj`) and speculative draft models (MTP,
+   DSpark, DFlash, DFlash2).
 4. Generates `ROOT/manifests/NAME.yaml`.
 5. Estimates, downloads, and validates the complete selection in resumable staging.
 6. Atomically publishes the object and updates `ROOT/active/NAME`.
@@ -189,7 +190,12 @@ runtime:
 `entrypoint` can select a relative GGUF path explicitly. `model_card` and every
 path in `companions` are required artifacts: update fails before publication if
 the selected snapshot omitted one. For llama.cpp, `serve-command` adds
-`--mmproj` and MTP draft arguments from the companion metadata automatically.
+`--mmproj` and `--model-draft` from the companion metadata automatically, plus
+the draft kind's `--spec-type`: `draft-dspark` for DSpark drafts, none for
+DFlash drafts, and `draft-mtp` for everything else, including any file under an
+`MTP/` directory and hand-written companions with no draft prefix, as before.
+Set `draft_spec_type` in the manifest to override it (for example
+`draft_spec_type: draft-dflash`).
 A vLLM+GGUF profile is rejected in the version 1 workflow. Runtime arguments
 may contain `{path}`, `{object}`, and `{name}` placeholders; when `{path}` or
 `{object}` is present, the argument list replaces the runtime's default model
@@ -285,7 +291,8 @@ to catch spelling mistakes before a transfer starts.
 | `quantization` | no | GGUF quantization substring or filename |
 | `runtime` | no | `auto`, `vllm`, or `llama.cpp`; defaults to `auto` |
 | `mmproj` | no | Projector filename/path or substring when auto-selection is ambiguous |
-| `mtp` | no | MTP draft filename/path or substring when auto-selection is ambiguous |
+| `mtp` | no | Draft model (MTP, DSpark, DFlash) filename/path or substring when auto-selection is ambiguous |
+| `draft_spec_type` | no | llama.cpp `--spec-type` for the draft; defaults to the draft kind's value |
 | `force` | no | Boolean; replace a generated manifest with different settings |
 
 Companion paths are relative to the Hugging Face repository root. Include the
@@ -414,11 +421,15 @@ The generator queries Hugging Face for the selected revision and inspects the
 repository filenames. Standard safetensors/bin weights select vLLM; a
 GGUF-only repository selects llama.cpp. The root `README.md` model card is
 retained with the model.
-For llama.cpp, in-repository `mmproj*.gguf`, `mtp-*.gguf`, and GGUF files under
-an `MTP/` directory are selected as companions, recorded, and later validated.
-MTP-directory files are excluded from primary model quantization selection.
-`mmproj-F16.gguf` and a single root MTP file are preferred when present;
-otherwise ambiguous companion choices require `--mmproj` or `--mtp`. When
+For llama.cpp, in-repository `mmproj*.gguf` files and speculative draft models
+are selected as companions, recorded, and later validated. A draft is a GGUF
+whose basename starts with `mtp-`, `dspark-`, `dflash-`, or `dflash2-`, or that
+sits under an `MTP/`, `dspark/`, `dflash/`, or `dflash2/` directory. Drafts and
+`*imatrix*` calibration files are excluded from primary model quantization
+selection. `mmproj-F16.gguf` is preferred for projectors. For drafts, a single
+root-level draft is preferred; among several root drafts, the single `Q8_0`
+one is chosen. Otherwise ambiguous companion choices require `--mmproj` or
+`--mtp`. When
 multiple primary GGUF quantizations are available, generation stops and
 requires `--quantization`. For sharded GGUFs, every shard is selected and shard
 `00001` is used as the entrypoint.
@@ -435,7 +446,8 @@ Useful options:
 --quantization Q4_K_M       Select one GGUF quantization
 --runtime auto|vllm|llama.cpp
 --mmproj FILE               Resolve an ambiguous multimodal projector
---mtp FILE                  Resolve an ambiguous MTP draft model
+--mtp FILE                  Resolve an ambiguous draft model (MTP/DSpark/DFlash)
+--draft-spec-type TYPE      Override the draft's llama.cpp --spec-type
 --output PATH               Write somewhere other than ROOT/manifests
 --force                     Replace an existing manifest
 ```

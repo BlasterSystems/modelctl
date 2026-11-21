@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .drafts import validate_spec_type
 from .errors import ManifestError
 
 _NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -28,6 +29,9 @@ class ModelManifest:
     entrypoint: str | None = None
     model_card: str | None = None
     companions: tuple[tuple[str, str], ...] = ()
+    # llama.cpp --spec-type override for the ``mtp`` draft companion; None
+    # means "derive from the draft kind" (see drafts.effective_spec_type).
+    draft_spec_type: str | None = None
     runtime: RuntimeProfile = field(
         default_factory=lambda: RuntimeProfile("vllm", "vllm")
     )
@@ -147,6 +151,14 @@ def parse_manifest(document: Any, name: str) -> ModelManifest:
             raise ManifestError(f"companion {kind!r} must be a relative path")
         companions.append((kind, _relative_path(value, f"companion {kind!r}")))
 
+    draft_spec_type = raw.get("draft_spec_type")
+    if draft_spec_type is not None:
+        if not isinstance(draft_spec_type, str):
+            raise ManifestError("draft_spec_type must be a string")
+        validate_spec_type(draft_spec_type)
+        if "mtp" not in dict(companions):
+            raise ManifestError("draft_spec_type requires an 'mtp' draft companion")
+
     runtime_raw = raw.get("runtime")
     if runtime_raw is None and isinstance(raw.get("serve"), dict):
         runtime_raw = raw["serve"]
@@ -164,6 +176,7 @@ def parse_manifest(document: Any, name: str) -> ModelManifest:
         entrypoint=entrypoint,
         model_card=model_card,
         companions=tuple(sorted(companions)),
+        draft_spec_type=draft_spec_type,
         runtime=runtime,
     )
 

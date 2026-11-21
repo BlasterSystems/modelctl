@@ -30,6 +30,7 @@ class DownloadRequest:
     runtime: str = "auto"
     mmproj: str | None = None
     mtp: str | None = None
+    draft_spec_type: str | None = None
     force: bool = False
 
 
@@ -99,6 +100,7 @@ _ALLOWED_KEYS = {
     "runtime",
     "mmproj",
     "mtp",
+    "draft_spec_type",
     "force",
 }
 _ALLOWED_RUNTIMES = {"auto", "vllm", "llama.cpp"}
@@ -168,6 +170,7 @@ def load_download_queue(path: Path) -> list[DownloadRequest]:
                 runtime=runtime,
                 mmproj=_optional_string(item, "mmproj", index),
                 mtp=_optional_string(item, "mtp", index),
+                draft_spec_type=_optional_string(item, "draft_spec_type", index),
                 force=force,
             )
         )
@@ -262,6 +265,7 @@ def prepare_download_queue(
                 runtime=request.runtime,
                 mmproj=request.mmproj,
                 mtp=request.mtp,
+                draft_spec_type=request.draft_spec_type,
             )
             if (
                 not isinstance(document, dict)
@@ -361,6 +365,7 @@ def execute_download_queue(
                     runtime=request.runtime,
                     mmproj=request.mmproj,
                     mtp=request.mtp,
+                    draft_spec_type=request.draft_spec_type,
                     force_manifest=request.force,
                 )
             return DownloadResult(request, manifest_path, active_path)

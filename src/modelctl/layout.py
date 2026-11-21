@@ -60,6 +60,8 @@ class Layout:
             settings["model_card"] = manifest.model_card
         if manifest.companions:
             settings["companions"] = manifest.companions
+        if manifest.draft_spec_type:
+            settings["draft_spec_type"] = manifest.draft_spec_type
         selection = hashlib.sha256(
             json.dumps(settings, sort_keys=True).encode()
         ).hexdigest()[:12]
